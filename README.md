@@ -3,12 +3,14 @@
 Tool for computing WWW-Digest MD5 HA1 string.
 
 License: MIT
+
 Copyright: Daniel-Constantin Mierla (http://www.asipto.com)
 
-MD5 Hashing Functions:
+Origin of MD5 Hashing Functions (imported in md5ha1 project):
 
+  * Source: http://www.nayuki.io/page/fast-md5-hash-implementation-in-x86-assembly
   * License: MIT
-  * Copyright: Project Nayuki (http://www.nayuki.io/page/fast-md5-hash-implementation-in-x86-assembly)
+  * Copyright: Project Nayuki
 
 ## Overview
 
@@ -91,11 +93,37 @@ The options can be:
     * 'alphanum' - alphanumeric characters
     * 'full' - ascii printable characters
     * file-name - if none above matches, the name is tried to be opened as a text file and load its content as a characters set
+  * -p fname: path to a file with passwords to try (one password per line)
+  * -P fname: path to a file with password templates to try (one template per line)
+  * -R x=value: defining a replacement specifier for password templates
 
-For example, testing if the HA1 of user 'alice' with realm 'wonderland.com' is using a 3-digit password (e.g., well known passwords like 101), with printing the execution time:
+Sample content for files with passwords or password templates can be found in data/ subfolder.
+
+A specifier in a password template is replaced by an associated value. A specifier is represented by '%X', where X is a single character and can be:
+
+  * % - the replacement value is the string "$" (i.e., "%%" in template is replaced with "%")
+  * u - the replacement value is the username parameter
+  * r - the replacement value is the realm parameter
+  * any other character defined with rules via -R parameter. For example, if you want "%a" to be replaced by "alice", use "-R a=alice"
+
+Examples:
+
+  * testing if the HA1 of user 'alice' with realm 'wonderland.com' is using a 3-digit password (e.g., well known passwords like 101), with printing the execution time:
 
 ```
 md5ha1 -d -t -m 3 -M 3 -c num alice wonderland.com 35674a0b10d747d9cdb47e0b849aa5e0
+```
+
+  * testing if the HA1 of user 'alice' with realm 'wonderland.com' is using one of the passwords in the file data/pwlist.txt:
+
+```
+md5ha1 -d -t -p data/pwlist.txt alice wonderland.com 35674a0b10d747d9cdb47e0b849aa5e0
+```
+
+  * testing if the HA1 of user 'alice' with realm 'wonderland.com' is using one of the password templates in the file data/ptlist.txt, defining replacement of "%a" with value "one" and "%b" with value "two":
+
+```
+md5ha1 -d -t -P data/ptlist.txt -R a=one -R b=two alice wonderland.com 35674a0b10d747d9cdb47e0b849aa5e0
 ```
 
 ## Remarks
