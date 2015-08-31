@@ -105,7 +105,7 @@ void hex_encode(char _b[16], char *_h)
 {
 	unsigned short i;
 	unsigned char j;
-	
+
 	for (i = 0; i < 16; i++) {
 		j = (_b[i] >> 4) & 0xf;
 		if (j <= 9) {
@@ -186,6 +186,8 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 	int ibuf_len;
 	int a, b, i;
 	int cipos[64];
+	FILE* fp;
+	char lbuf[128];
 
 	struct timeval tval_s, tval_e, tval_r;
 
@@ -228,18 +230,27 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 
 	if(etime) gettimeofday(&tval_s, NULL);
 
-	for(a=penv->lenmin; a<=penv->lenmax; a++) {
-		for(b=0; b<=a; b++) {
-			cipos[b]=0;
-			ibuf[ibuf_pidx+b] = cset[cipos[b]];
+	/* try password words file */
+	if(penv->pwfile) {
+		if ((fp = fopen(penv->pwfile, "r")) == NULL)
+		{
+			printf("failed to open password words file\n");
+			return -2;
 		}
-		ibuf_len = ibuf_pidx+a+1;
-		ibuf[ibuf_len] = '\0';
-		do {
+		while (fgets(lbuf, 128, fp) != NULL) {
+			i = strlen(lbuf);
+			// drop the newline from fgets()
+			if(i>0 && lbuf[i - 1]=='\n') {
+				lbuf[i - 1] = '\0';
+				i--;
+			}
+			printf("trying password: [%s]\n", lbuf);
+			strcpy(ibuf+ibuf_pidx, lbuf);
+			ibuf_len = ibuf_pidx + i;
 			// printf("trying: [%s]\n", ibuf);
 			md5_hash((const uint8_t *)ibuf, ibuf_len, ha1out);
 			if(memcmp(ha1bin, ha1out, 4*sizeof(uint32_t))==0) {
-				printf("matched: [%s]\n", ibuf);
+				printf("pw matched: [%s]\n", ibuf);
 				if(etime) {
 					gettimeofday(&tval_e, NULL);
 					timersub(&tval_e, &tval_s, &tval_r);
@@ -248,29 +259,60 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 				}
 				return 1;
 			}
-			i = a;
-			while (i >= 0) {
-				cipos[i]++;
-				ibuf[ibuf_pidx+i] = cset[cipos[i]];
-	
-				if(cipos[i]>=cset_len) {
-					if(i>0) {
-						cipos[i] = 0;
-						ibuf[ibuf_pidx+i] = cset[cipos[i]];
-					}
-					i--;
-				} else {
-					break;
-				}
+		}
+		fclose(fp);
+	}
+
+	/* try password templatess file */
+	if(penv->ptfile) {
+	}
+
+	/* try generating passwords */
+	if(penv->lenmax>=0) {
+		for(a=penv->lenmin; a<=penv->lenmax; a++) {
+			for(b=0; b<=a; b++) {
+				cipos[b]=0;
+				ibuf[ibuf_pidx+b] = cset[cipos[b]];
 			}
-		} while(cipos[0]<cset_len);
+			ibuf_len = ibuf_pidx+a+1;
+			ibuf[ibuf_len] = '\0';
+			do {
+				// printf("trying: [%s]\n", ibuf);
+				md5_hash((const uint8_t *)ibuf, ibuf_len, ha1out);
+				if(memcmp(ha1bin, ha1out, 4*sizeof(uint32_t))==0) {
+					printf("gw matched: [%s]\n", ibuf);
+					if(etime) {
+						gettimeofday(&tval_e, NULL);
+						timersub(&tval_e, &tval_s, &tval_r);
+						printf("found - execution time: %ld.%06ld\n",
+								(long int)tval_r.tv_sec, (long int)tval_r.tv_usec);
+					}
+					return 1;
+				}
+				i = a;
+				while (i >= 0) {
+					cipos[i]++;
+					ibuf[ibuf_pidx+i] = cset[cipos[i]];
+
+					if(cipos[i]>=cset_len) {
+						if(i>0) {
+							cipos[i] = 0;
+							ibuf[ibuf_pidx+i] = cset[cipos[i]];
+						}
+						i--;
+					} else {
+						break;
+					}
+				}
+			} while(cipos[0]<cset_len);
+		}
 	}
 
 	if(etime) {
 		gettimeofday(&tval_e, NULL);
 		timersub(&tval_e, &tval_s, &tval_r);
 		printf("not found - execution time: %ld.%06ld\n",
-					(long int)tval_r.tv_sec, (long int)tval_r.tv_usec);
+				(long int)tval_r.tv_sec, (long int)tval_r.tv_usec);
 	}
 	return 0;
 }
@@ -299,8 +341,6 @@ int main(int argc, char **argv)
 	}
 
 	memset(&denv, 0, sizeof(ha1_decode_env_t));
-	denv.lenmin = 1;
-	denv.lenmax = 6;
 	k = 0;
 
 	if(strcmp(argv[1], "-e")==0) {
@@ -378,13 +418,13 @@ int main(int argc, char **argv)
 					params[2], strlen(params[2]));
 			return -1;
 		}
-		if(denv.lenmin<0 || denv.lenmax<=0 || denv.lenmin>denv.lenmax) {
+		if(denv.lenmin<0 || denv.lenmax<0 || denv.lenmin>denv.lenmax) {
 			printf("invalid minimum or maximum lenght\n");
 			return -1;
 		}
 		if(denv.lenmin>0) denv.lenmin--;
 		denv.lenmax--;
-	
+
 		return ha1_decode_run(&denv, params[0], params[1], params[2]);
 	} else {
 		printf("invalid command parameter: %s\n", argv[1]);
