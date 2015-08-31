@@ -69,6 +69,23 @@ void help(int argc, char **argv)
 	printf("    %s -h : help message\n\n", argv[0]);
 }
 
+void etime_print(char *txt, struct timeval *tval_s, struct timeval *tval_e)
+{
+	struct timeval tval_r;
+	long int h;
+	int m;
+	int s;
+
+	timersub(tval_e, tval_s, &tval_r);
+	h = ((long int)tval_r.tv_sec)/3600;
+	m = ((int)((long int)tval_r.tv_sec)%3600)/60;
+	s = (int)((long int)tval_r.tv_sec)%60;
+	printf("%s: %ld.%06ld (%ld:%02d:%02d.%06ld)\n",
+			txt, (long int)tval_r.tv_sec, (long int)tval_r.tv_usec,
+			h, m, s, (long int)tval_r.tv_usec);
+
+}
+
 char *cs_lookup(char *name)
 {
 	static char cs_a_file[512];
@@ -214,8 +231,7 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 	char tbuf[256];
 	char *p;
 	char *q;
-
-	struct timeval tval_s, tval_e, tval_r;
+	struct timeval tval_s, tval_e;
 
 	if(penv->lenmax > 64) {
 		printf("error - password max len is too big [%d] (max 64)\n", penv->lenmax);
@@ -283,9 +299,7 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 				printf("pw matched: [%s]\n", ibuf);
 				if(etime) {
 					gettimeofday(&tval_e, NULL);
-					timersub(&tval_e, &tval_s, &tval_r);
-					printf("found - execution time: %ld.%06ld\n",
-							(long int)tval_r.tv_sec, (long int)tval_r.tv_usec);
+					etime_print("found - execution time", &tval_s, &tval_e);
 				}
 				fclose(fp);
 				return 1;
@@ -369,9 +383,7 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 				printf("pt matched: [%s]\n", ibuf);
 				if(etime) {
 					gettimeofday(&tval_e, NULL);
-					timersub(&tval_e, &tval_s, &tval_r);
-					printf("found - execution time: %ld.%06ld\n",
-							(long int)tval_r.tv_sec, (long int)tval_r.tv_usec);
+					etime_print("found - execution time", &tval_s, &tval_e);
 				}
 				fclose(fp);
 				return 1;
@@ -400,9 +412,7 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 					printf("gw matched: [%s]\n", ibuf);
 					if(etime) {
 						gettimeofday(&tval_e, NULL);
-						timersub(&tval_e, &tval_s, &tval_r);
-						printf("found - execution time: %ld.%06ld\n",
-								(long int)tval_r.tv_sec, (long int)tval_r.tv_usec);
+						etime_print("found - execution time", &tval_s, &tval_e);
 					}
 					return 1;
 				}
@@ -427,9 +437,7 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 
 	if(etime) {
 		gettimeofday(&tval_e, NULL);
-		timersub(&tval_e, &tval_s, &tval_r);
-		printf("not found - execution time: %ld.%06ld\n",
-				(long int)tval_r.tv_sec, (long int)tval_r.tv_usec);
+		etime_print("not found - execution time", &tval_s, &tval_e);
 	}
 	return 0;
 }
