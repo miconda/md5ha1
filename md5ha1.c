@@ -188,6 +188,9 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 	int cipos[64];
 	FILE* fp;
 	char lbuf[128];
+	char tbuf[128];
+	char *p;
+	char *q;
 
 	struct timeval tval_s, tval_e, tval_r;
 
@@ -215,7 +218,7 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 	}
 	cset_len = strlen(cset);
 
-	if(strlen(username) + strlen(realm) + penv->lenmax + 3 >= 1024) {
+	if(strlen(username) + strlen(realm) + 3 >= 1024) {
 		printf("input values are too big\n");
 		return -2;
 	}
@@ -232,6 +235,10 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 
 	/* try password words file */
 	if(penv->pwfile) {
+		if(strlen(username) + strlen(realm) + 128 + 3 >= 1024) {
+			printf("input values are too big\n");
+			return -2;
+		}
 		if ((fp = fopen(penv->pwfile, "r")) == NULL)
 		{
 			printf("failed to open password words file\n");
@@ -244,7 +251,7 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 				lbuf[i - 1] = '\0';
 				i--;
 			}
-			printf("trying password: [%s]\n", lbuf);
+			printf("trying pw value: [%s]\n", lbuf);
 			strcpy(ibuf+ibuf_pidx, lbuf);
 			ibuf_len = ibuf_pidx + i;
 			// printf("trying: [%s]\n", ibuf);
@@ -257,6 +264,7 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 					printf("found - execution time: %ld.%06ld\n",
 							(long int)tval_r.tv_sec, (long int)tval_r.tv_usec);
 				}
+				fclose(fp);
 				return 1;
 			}
 		}
@@ -265,10 +273,86 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 
 	/* try password templatess file */
 	if(penv->ptfile) {
+		if(strlen(username) + strlen(realm) + 126 + 3 >= 1024) {
+			printf("input values are too big\n");
+			return -2;
+		}
+		if ((fp = fopen(penv->ptfile, "r")) == NULL)
+		{
+			printf("failed to open password templates file\n");
+			return -2;
+		}
+		while (fgets(lbuf, 128, fp) != NULL) {
+			i = strlen(lbuf);
+			// drop the newline from fgets()
+			if(i>0 && lbuf[i - 1]=='\n') {
+				lbuf[i - 1] = '\0';
+				i--;
+			}
+			q = lbuf;
+			tbuf[0] = '\0';
+			if((p=strchr(lbuf, '%'))==NULL) {
+				printf("trying pt s-value: [%s]\n", lbuf);
+				strcpy(ibuf+ibuf_pidx, lbuf);
+				ibuf_len = ibuf_pidx + i;
+			} else {
+				do {
+					if(p+1<lbuf+i) {
+						if(*(p+1)=='u') {
+							strncat(tbuf, q, p-q);
+							strcat(tbuf, username);
+							q = p+2;
+						} else if(*(p+1)=='r') {
+							strncat(tbuf, q, p-q);
+							strcat(tbuf, realm);
+							q = p+2;
+						} else if(*(p+1)=='%') {
+							strncat(tbuf, q, p-q);
+							strcat(tbuf, "%");
+							q = p+2;
+						} else {
+							strncat(tbuf, q, p-q+1);
+							q = p+1;
+						}
+					} else {
+						strncat(tbuf, q, p-q+1);
+						q = p+1;
+					}
+					if(p<lbuf+i)
+						p=strchr(q, '%');
+					else
+						p = NULL;
+				} while(p);
+				if(q!=lbuf+i)
+					strcat(tbuf, q);
+				printf("trying pt d-value: [%s]\n", tbuf);
+				strcpy(ibuf+ibuf_pidx, tbuf);
+				i = strlen(tbuf);
+				ibuf_len = ibuf_pidx + i;
+			}
+			// printf("trying: [%s]\n", ibuf);
+			md5_hash((const uint8_t *)ibuf, ibuf_len, ha1out);
+			if(memcmp(ha1bin, ha1out, 4*sizeof(uint32_t))==0) {
+				printf("pt matched: [%s]\n", ibuf);
+				if(etime) {
+					gettimeofday(&tval_e, NULL);
+					timersub(&tval_e, &tval_s, &tval_r);
+					printf("found - execution time: %ld.%06ld\n",
+							(long int)tval_r.tv_sec, (long int)tval_r.tv_usec);
+				}
+				fclose(fp);
+				return 1;
+			}
+		}
+		fclose(fp);
 	}
 
 	/* try generating passwords */
 	if(penv->lenmax>=0) {
+		if(strlen(username) + strlen(realm) + penv->lenmax + 3 >= 1024) {
+			printf("input values are too big\n");
+			return -2;
+		}
 		for(a=penv->lenmin; a<=penv->lenmax; a++) {
 			for(b=0; b<=a; b++) {
 				cipos[b]=0;
@@ -384,7 +468,7 @@ int main(int argc, char **argv)
 					printf("missing patterns file for parameter [%d]: %s\n", i-1, argv[i-1]);
 					return -1;
 				}
-				denv.pwfile = argv[i];
+				denv.ptfile = argv[i];
 			} else if(strcmp(argv[i], "-m")==0) {
 				i++;
 				if(argc==i) {
