@@ -39,6 +39,8 @@ typedef struct ha1_decode_env {
 	char *charset;
 	int lenmin;
 	int lenmax;
+	char *ptextra[16];
+	int ptextra_len;
 
 } ha1_decode_env_t;
 
@@ -311,8 +313,18 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 							strcat(tbuf, "%");
 							q = p+2;
 						} else {
-							strncat(tbuf, q, p-q+1);
-							q = p+1;
+							for(a=0; a<penv->ptextra_len; a++) {
+								if(*(p+1)==penv->ptextra[a][0])
+									break;
+							}
+							if(a==penv->ptextra_len) {
+								strncat(tbuf, q, p-q+1);
+								q = p+1;
+							} else {
+								strncat(tbuf, q, p-q);
+								strcat(tbuf, penv->ptextra[a]+2);
+								q = p+2;
+							}
 						}
 					} else {
 						strncat(tbuf, q, p-q+1);
@@ -469,6 +481,22 @@ int main(int argc, char **argv)
 					return -1;
 				}
 				denv.ptfile = argv[i];
+			} else if(strcmp(argv[i], "-R")==0) {
+				i++;
+				if(argc==i) {
+					printf("missing value for replacement in password templates [%d]: %s\n", i-1, argv[i-1]);
+					return -1;
+				}
+				if(strlen(argv[i])<3 || argv[i][1]!='=') {
+					printf("invalid value for replacement in password templates [%d]: %s\n", i-1, argv[i-1]);
+					return -1;
+				}
+				if(denv.ptextra_len>15) {
+					printf("too many values for replacement in password templates [%d]: %s\n", i-1, argv[i-1]);
+					return -1;
+				}
+				denv.ptextra[denv.ptextra_len] = argv[i];
+				denv.ptextra_len++;
 			} else if(strcmp(argv[i], "-m")==0) {
 				i++;
 				if(argc==i) {
