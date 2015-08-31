@@ -8,7 +8,7 @@ Copyright: Daniel-Constantin Mierla (http://www.asipto.com)
 MD5 Hashing Functions:
 
   * License: MIT
-  * CopyRight: Project Nayuki (http://www.nayuki.io/page/fast-md5-hash-implementation-in-x86-assembly)
+  * Copyright: Project Nayuki (http://www.nayuki.io/page/fast-md5-hash-implementation-in-x86-assembly)
 
 ## Overview
 
