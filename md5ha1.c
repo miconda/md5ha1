@@ -71,6 +71,10 @@ void help(int argc, char **argv)
 
 char *cs_lookup(char *name)
 {
+	static char cs_a_file[512];
+	FILE* fp;
+	int i;
+
 	if(strcmp(name, "num")==0) {
 		return cs_a_num;
 	} else if(strcmp(name, "hex")==0) {
@@ -94,7 +98,24 @@ char *cs_lookup(char *name)
 	} else if(strcmp(name, "full")==0) {
 		return cs_a_full;
 	} else {
-		return NULL;
+		if ((fp = fopen(name, "r")) == NULL) {
+			printf("failed to open charset file [%s]\n", name);
+			return NULL;
+		}
+		if(fgets(cs_a_file, 512, fp) != NULL) {
+			i = strlen(cs_a_file);
+			if(i>1 && cs_a_file[i-1]=='\n') {
+				cs_a_file[i-1] = '\0';
+				i--;
+			}
+			fclose(fp);
+			printf("using file [%s] with charset [%s]\n", name, cs_a_file);
+			return cs_a_file;
+		} else {
+			printf("failed to read charset file [%s]\n", name);
+			fclose(fp);
+			return NULL;
+		}
 	}
 }
 
@@ -190,7 +211,7 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 	int cipos[64];
 	FILE* fp;
 	char lbuf[128];
-	char tbuf[128];
+	char tbuf[256];
 	char *p;
 	char *q;
 
@@ -275,7 +296,7 @@ int ha1_decode_run(ha1_decode_env_t *penv, char *username, char *realm, char *ha
 
 	/* try password templatess file */
 	if(penv->ptfile) {
-		if(strlen(username) + strlen(realm) + 126 + 3 >= 1024) {
+		if(strlen(username) + strlen(realm) + 256 + 3 >= 1024) {
 			printf("input values are too big\n");
 			return -2;
 		}
