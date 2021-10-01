@@ -128,8 +128,6 @@ md5ha1 -d -t -P data/ptlist.txt -R a=one -R b=two alice wonderland.com 35674a0b1
 
 ## Remarks
 
-The tool is still work in progress: lots of planned features not implemented; debug messages, output format, etc. may change.
-
 The first target was to detect short/weak passwords, therefore there is no parallel processing. It can be added in the future.
 
 Even if you test with this tool, it is highly recommended to have active and strong protection of your server for SIP flooding or dictionary attacks. If you run Kamailio, see:
