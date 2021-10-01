@@ -101,7 +101,7 @@ Sample content for files with passwords or password templates can be found in da
 
 A specifier in a password template is replaced by an associated value. A specifier is represented by '%X', where X is a single character and can be:
 
-  * % - the replacement value is the string "$" (i.e., "%%" in template is replaced with "%")
+  * % - the replacement value is the string "%" (i.e., "%%" in template is replaced with "%")
   * u - the replacement value is the username parameter
   * r - the replacement value is the realm parameter
   * any other character defined with rules via -R parameter. For example, if you want "%a" to be replaced by "alice", use "-R a=alice"
