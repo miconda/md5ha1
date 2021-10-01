@@ -67,7 +67,7 @@ No external libraries are required. Clone the source code and run 'make' in the 
 Compute and display the HA1 for a given combination username, realm and password.
 
 ```
-md5ha1 -c username realm password
+md5ha1 -e username realm password
 ```
 
 ### Decode HA1
